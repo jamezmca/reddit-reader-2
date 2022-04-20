@@ -12,17 +12,6 @@ const baseUrl = 'https://www.reddit.com/r/'
 // const interval = 900000 //5s
 const interval = 300000 //5s
 
-const { initializeApp, applicationDefault, cert } = require('firebase-admin/app')
-const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore')
-
-const serviceAccount = require('./public/creds.json');
-
-initializeApp({
-    credential: cert(serviceAccount)
-})
-
-// Initialize Cloud Firestore and get a reference to the service
-const db = getFirestore()
 
 const storedData = {}
 
@@ -57,29 +46,24 @@ async function run() {
     }))
     console.log(data)
 
-    // const storedData = readDb() ? readDb() : {}
+    const storedData = readDb() ? readDb() : {}
 
     data.forEach(async website => {
-        const key = Object.keys(website)[0]
-        const docRef = db.collection('activity').doc(`${key}`)
-        // if (key in storedData) {
-        //     storedData[key] = {
-        //         ...storedData[key],
-        //         [new Date()]: website[key]
-        //     }
-        //     return
-        // }
-        // storedData[key] = {
-        //     [new Date()]: website[key]
-        // }
-        const res = await docRef.set({
+  
+        if (key in storedData) {
+            storedData[key] = {
+                ...storedData[key],
+                [new Date()]: website[key]
+            }
+            return
+        }
+        storedData[key] = {
             [new Date()]: website[key]
-        }, {
-            merge: true
-        });
+        }
+
     })
     // console.log(storedData)
-    // writeDb(storedData)
+    writeDb(storedData)
 }
 
 cron(interval, run)
@@ -108,23 +92,18 @@ app.get('/api/:subreddit', async (req, res) => {
     const { api_key } = req.query
     console.log('hello', subreddit)
     // const data = readDb()
-    // const data = storedData
+    const data = storedData
     if (api_key !== 'james') {
         return res.status(400).send({ message: "Please use API key" })
     }
 
-    const docRef = db.collection('activity').doc(subreddit)
-    const doc = await docRef.get()
 
-    // if (!Object.keys(data).includes(subreddit)) {
-    //     return res.status(400).send({ message: 'Subreddit not tracked' })
-    // }
-    if (!doc.exists) {
+    if (!Object.keys(data).includes(subreddit)) {
         return res.status(400).send({ message: 'Subreddit not tracked' })
     }
 
-    // res.status(200).send({ [subreddit]: data[subreddit] })
-    res.status(200).send({ [subreddit]: doc.data() })
+
+    res.status(200).send({ [subreddit]: data[subreddit] })
 })
 
 app.listen(port, () => console.log(`Server has started on port: ${port}`))
